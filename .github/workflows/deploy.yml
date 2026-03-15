@@ -21,5 +21,7 @@ jobs:
 
             cd /var/www/html/dev/tadreeblms
             git pull --ff-only
+
+            echo "Deployment completed"
             php artisan migrate
 
