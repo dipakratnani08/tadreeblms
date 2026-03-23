@@ -1,4 +1,4 @@
-name: Deploy to Dev Server
+name: Deploy TadreebLMS (Dev)
 
 on:
   push:
@@ -15,24 +15,34 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+
           script: |
-            echo "Connected to server"
+            set -e
+
+            echo "🚀 Connected to server"
             hostname
 
             cd /var/www/html/dev/tadreeblms
 
-            # Pull latest code
-            git pull --ff-only
+            # Fix git safe directory
+            git config --global --add safe.directory /var/www/html/dev/tadreeblms
 
-            # Fix permissions
-            sudo chown -R ubuntu:www-data storage bootstrap/cache
-            sudo chmod -R 775 storage bootstrap/cache
-            sudo chmod -R 775 storage/framework
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
 
-            # Clear caches
+            echo "🧹 Clearing old cache..."
             php artisan cache:clear || true
             php artisan config:clear || true
             php artisan view:clear || true
 
-            # Run migrations safely
+            echo "⚙️ Optimizing Laravel..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo "🗄 Running migrations..."
             php artisan migrate --force
+
+            echo "✅ Deployment completed successfully"
