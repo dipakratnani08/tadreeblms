@@ -24,13 +24,13 @@ if ($step === 'start') {
         $basePath . '/installed',
         $basePath . '/.migrations_done',
         $basePath . '/.seed_done',
-        __DIR__ . '/db_config.json',
+        $basePath . '/storage/app/installer/db_config.json',
     ] as $file) {
         if (file_exists($file)) unlink($file);
     }
 
     // Recreate empty db_config.json
-    file_put_contents(__DIR__ . '/db_config.json', '{}');
+    file_put_contents($basePath . '/storage/app/installer/db_config.json', '{}');
 
     // Recreate fresh .env from .env.example using an atomic rename so the file
     // is never absent — preventing filemtime() crashes in `php artisan serve`.
@@ -47,7 +47,7 @@ if ($step === 'start') {
     }
 
     // Log reset
-    file_put_contents(__DIR__ . '/install.log',
+    file_put_contents($basePath . '/storage/logs/install.log',
         date('Y-m-d H:i:s') . " - Installer reset on start\n",
         FILE_APPEND
     );
@@ -73,7 +73,7 @@ $steps = [
 $envFile = __DIR__ . '/../.env';
 $migrationDoneFile = __DIR__ . '/../.migrations_done';
 $seedDoneFile = __DIR__ . '/../.seed_done';
-$dbConfigFile = __DIR__ . '/db_config.json';
+$dbConfigFile = $basePath . '/storage/app/installer/db_config.json';
 $installedFlag = __DIR__ . '/../installed'; 
 
 // --------------------
@@ -97,7 +97,8 @@ function out($text)
 
 function fail($msg)
 {
-    file_put_contents(__DIR__ . '/install_error.log', date('Y-m-d H:i:s') . " - " . $msg . "\n", FILE_APPEND);
+    $basePath = realpath(__DIR__ . '/..');
+    file_put_contents($basePath . '/storage/logs/install_error.log', date('Y-m-d H:i:s') . " - " . $msg . "\n", FILE_APPEND);
     echo "<br>⚠️ " . htmlspecialchars($msg) . "<br>";
     exit;
 }
