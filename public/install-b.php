@@ -47,10 +47,17 @@ if ($step === 'start') {
     }
 
     // Log reset
-    file_put_contents($basePath . '/storage/logs/install.log',
-        date('Y-m-d H:i:s') . " - Installer reset on start\n",
-        FILE_APPEND
-    );
+    $logFile = $basePath . '/storage/logs/install.log';
+    // Ensure directory exists
+    if (!is_dir(dirname($logFile))) {
+        mkdir(dirname($logFile), 0755, true);
+    }
+
+    // Create file if not exists
+    if (!file_exists($logFile)) {
+        touch($logFile);
+    }
+    file_put_contents($logFile,date('Y-m-d H:i:s') . " - Installer reset on start\n",FILE_APPEND);
 }
 // --------------------
 // Installer Steps
@@ -98,7 +105,17 @@ function out($text)
 function fail($msg)
 {
     $basePath = realpath(__DIR__ . '/..');
-    file_put_contents($basePath . '/storage/logs/install_error.log', date('Y-m-d H:i:s') . " - " . $msg . "\n", FILE_APPEND);
+    $errorLogFile = $basePath . '/storage/logs/install_error.log';
+    // Ensure directory exists
+    if (!is_dir(dirname($errorLogFile))) {
+        mkdir(dirname($errorLogFile), 0755, true);
+    }
+
+    // Create file if not exists
+    if (!file_exists($errorLogFile)) {
+        touch($errorLogFile);
+    }
+    file_put_contents($errorLogFile, date('Y-m-d H:i:s') . " - " . $msg . "\n", FILE_APPEND);
     echo "<br>⚠️ " . htmlspecialchars($msg) . "<br>";
     exit;
 }
