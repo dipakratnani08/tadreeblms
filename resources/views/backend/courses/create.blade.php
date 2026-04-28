@@ -261,6 +261,29 @@
                                     href="{{ route('admin.categories.create') . '?create' }}">{{ trans('labels.backend.courses.add_categories') }}</a>
                             </div>
                         </div>
+                        <div class="custom-select-wrapper mt-2">
+
+    <select name="teacher_id" class="form-control custom-select-box select2 js-example-placeholder-single">
+        @foreach($teachers as $id => $teacher)
+            <option value="{{ $id }}" @if(old('teacher_id') == $id) selected @endif>
+                {{ $teacher }}
+            </option>
+        @endforeach
+    </select>
+    <span class="custom-select-icon">
+        <i class="fa fa-chevron-down"></i>
+    </span>
+</div>
+                    </div>
+                    <div class="col-md-1 col-12 d-flex form-group flex-column"><span class="ortext">
+                        OR
+                       </span></div>
+                    <div class="col-md-3 col-12 d-flex form-group flex-column">
+                         <a target="_blank" class="btn btn-primary mt-auto"
+                            href="{{ url('user/teachers/create?teacher') }}">{{ trans('labels.backend.courses.add_teachers') }}</a>
+                    </div>
+                </div>
+            @endif
 
                         <div class="row">
                             <div class="col-md-12 form-group">
@@ -804,9 +827,10 @@
             });
 
 
-            $(".js-example-placeholder-single").select2({
-                placeholder: "{{ trans('labels.backend.courses.select_category') }}",
-            });
+    $(".js-example-placeholder-single").select2({
+        placeholder: "Select Teacher",
+        allowClear: false
+    });
 
             $(".js-example-placeholder-single").select2({
                 placeholder: "Select Teacher",
