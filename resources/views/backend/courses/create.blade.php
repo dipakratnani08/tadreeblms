@@ -282,8 +282,7 @@
                          <a target="_blank" class="btn btn-primary mt-auto"
                             href="{{ url('user/teachers/create?teacher') }}">{{ trans('labels.backend.courses.add_teachers') }}</a>
                     </div>
-                </div>
-      
+                </div>            
 
            
                 {{-- <div class="row">
