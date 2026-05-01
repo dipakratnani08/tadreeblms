@@ -11,6 +11,7 @@
         "bdhabib/laravel-menu": "^2.2",
         "creativeorange/gravatar": "^1.0",
         "darryldecode/cart": "^4.2",
+        "devianl2/laravel-scorm": "@dev",
         "directorytree/ldaprecord": "^3.0",
         "directorytree/ldaprecord-laravel": "^3.3",
         "doctrine/dbal": "^4.0",
@@ -81,5 +82,14 @@
         "optimize-autoloader": false
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": [
+    {
+        "type": "path",
+        "url": "../packages/laravel-scorm",
+        "options": {
+            "symlink": false
+        }
+    }
+]
 }

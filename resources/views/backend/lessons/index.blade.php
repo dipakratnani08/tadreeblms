@@ -196,7 +196,6 @@
                         text: '<i class="fa fa-eye icon-styles" aria-hidden="true"></i>',
                         className: '',
                     },
-                        @endif
                     {data: "DT_RowIndex", name: 'DT_RowIndex', searchable: false, orderable:false},
                     //{data: "id", name: 'id'},
 

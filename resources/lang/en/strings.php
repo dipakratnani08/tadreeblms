@@ -118,6 +118,7 @@ return array(
       'custom_controller_index' => 'Custom controller index.',
       'app_logout' => 'Logout',
       'app_add_new' => 'Add new',
+      'app_import_course' => 'Import Course',
       'app_add_new_course' => 'Add new Course',
       'app_are_you_sure' => 'Are you sure?',
       'app_assign_trainer' => 'Please asssign trainer for these Course',

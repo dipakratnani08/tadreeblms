@@ -22,11 +22,26 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Peopleaps\Scorm\Model\ScormModel;
+use Peopleaps\Scorm\Model\ScormScoModel;
 use Yajra\DataTables\Facades\DataTables;
+use App\Scorm\Manager\ScormManager;
+use App\Scorm\Strategies\ScormFieldStrategy;
+use App\Scorm\Strategies\Scorm12FieldStrategy;
+use App\Scorm\Strategies\Scorm2004FieldStrategy;
+use Peopleaps\Scorm\Model\ScormScoTrackingModel;
+use App\Scorm\Services\ScormTrackService;
 
 class LessonsController extends Controller
 {
     use FileUploadTrait;
+
+    protected $scormService;
+
+    public function __construct(ScormTrackService $scormService)
+    {
+        $this->scormService = $scormService;
+    }
 
     public function index(Request $request)
     {
@@ -37,6 +52,82 @@ class LessonsController extends Controller
         $courses = Course::orderBy('title')->get(['id', 'title']);
 
         return view('backend.lessons.index', compact('courses'));
+    }
+
+    public function viewScorm($scorm_id)
+    {
+        if (!Gate::allows('lesson_access')) {
+            return abort(401);
+        }
+
+
+        $scorm = ScormModel::findOrFail($scorm_id);
+
+        $firstSco = ScormScoModel::where('scorm_id', $scorm->id)
+            ->orderBy('id')
+            ->first();
+        if (!$firstSco) {
+            abort(404, 'No SCO found');
+        }
+        // Create tracking record , but disale as its for non student user
+        if (!auth()->user()->isAdmin()) {
+        app(\App\Scorm\Manager\ScormManager::class)->createScoTracking(
+            $firstSco->uuid,
+            auth()->id(),
+            auth()->user()->name
+        );
+        }
+        return view('backend.courses.scorm.player', compact(
+            'scorm',
+            'firstSco'
+        ));
+
+    }
+
+    public function track(Request $request, $scoUuid)
+    {
+        //$manager = app(ScormManager::class);
+
+        $result = $this->scormService->updateScoTracking(
+            $scoUuid,
+            auth()->id(),
+            $request->input('cmi') ?? $request->all()
+        );
+\Log::info('Tracking update result: ' . json_encode($result));
+        return response()->json([
+            'success' => true,
+            'data' => $result
+        ]);
+    }
+
+    public function getTracking($scoUuid, $scormVersion)
+    {
+        $manager = app(ScormManager::class);
+
+        $sco = $manager->getScoByUuid($scoUuid);
+
+        // $tracking = $manager->getUserResult(
+        //     $sco->id,
+        //     auth()->id()
+        // );
+
+        $scormVersion = Str::ucfirst(Str::camel($scormVersion));
+        $strategy = 'App\\Scorm\\Strategies\\' . $scormVersion . 'FieldStrategy';
+        $cmistrategy = new ScormFieldStrategy(new $strategy());
+        
+        $tracking = ScormScoTrackingModel::where('sco_id', $sco->id)
+            ->with('sco.scorm')
+            ->where('user_id', auth()->id())->first();
+        
+        $cmiData = [];
+
+            if ($tracking) {
+                $cmiData = $cmistrategy->getCmiData($tracking);
+            }  
+        return response()->json([
+            'tracking' => $tracking,
+            'details' => $cmiData
+        ]);
     }
 
     public function getData(Request $request)

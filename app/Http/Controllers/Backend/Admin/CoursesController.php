@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Backend\Admin;
 
 
 use App\Exports\CoursesExport;
+use App\Http\Requests\Admin\UploadScormCoursesRequest;
 use App\Models\Auth\User;
 use App\Models\Category;
 use App\Models\Course;
 use App\Models\Lesson;
 use App\Models\CourseTimeline;
 use App\Models\Media;
+use App\Scorm\Services\Contracts\ScormQueryServiceContract;
+use Exception;
 use function foo\func;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\Request;
@@ -31,10 +34,25 @@ use App\Exports\CourseAssignmentReportExport;
 use App\Notifications\Backend\CourseNotification;
 use App\Services\NotificationSettingsService;
 use Illuminate\Support\Str;
+use App\Scorm\Services\Contracts\ScormServiceContract;
+use App\Scorm\Services\ScormService;
 
 class CoursesController extends Controller
 {
     use FileUploadTrait;
+
+    // private ScormServiceContract $scormService;
+    // private ScormQueryServiceContract $scormQueryService;
+
+    // public function __construct(
+    //     ScormServiceContract $scormService,
+    //     ScormQueryServiceContract $scormQueryService
+    // ) {
+    //     $this->scormService = $scormService;
+    //     $this->scormQueryService = $scormQueryService;
+    // }
+
+    
 
     /**
      * Display a listing of Course.
@@ -352,7 +370,19 @@ class CoursesController extends Controller
             //     return $lesson;
             // })
             ->addColumn('lessons', function ($q) {
-    $dropdown = '
+                if (!empty($q->scorm_id)) {
+                    $dropdown = '
+            <div class="">
+                <a class="viewbtn" href="' . route('admin.lessons.viewScorm', ['scorm_id' => $q->scorm_id]) . '">
+                View
+                   <!-- <i class="fa fa-eye" aria-hidden="true" style="font-size:18px margin-bottom:-3px"></i> -->
+                </a>
+            </div>
+        ';
+                }
+                else
+                {
+                    $dropdown = '
         
            
             <div class="">
@@ -367,6 +397,8 @@ class CoursesController extends Controller
                 </a>
             </div>
         ';
+                }    
+    
     return $dropdown;
 })
             // ->addColumn('tests', function ($q) {
@@ -382,6 +414,9 @@ class CoursesController extends Controller
             //     return $lesson;
             // })
             ->addColumn('tests', function ($q) {
+                if (!empty($q->scorm_id)) {
+                    return '';
+                }
     $total_tests = $q->total_tests_published()->count();
 
    if ($total_tests == 0) {
@@ -501,6 +536,9 @@ class CoursesController extends Controller
             })
             ->addColumn('assignment', function ($q) {
                 //$total_tests = $q->total_tests_published()->count();
+                if (!empty($q->scorm_id)) {
+                    return '';
+                }
                 return $q->assesmentLink;
             })
             ->addColumn('total_students_enrolled', function ($q) {
@@ -563,6 +601,47 @@ class CoursesController extends Controller
         }
 
         return view('backend.courses.create', compact('internalStudents', 'externalStudents', 'teachers', 'categories', 'departments', 'enabledMeetingProviders'));
+    }
+
+
+
+    /**
+     * Show the form for creating new Course.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function importScorm()
+    {
+        if (!Gate::allows('course_create')) {
+            return abort(401);
+        }
+        $teachers = \App\Models\Auth\User::whereHas('roles', function ($q) {
+            $q->where('role_id', 2);
+        })->get()->pluck('name', 'id');
+
+        $internalStudents = \App\Models\Auth\User::whereHas('roles', function ($q) {
+            $q->where('role_id', 3)->where('employee_type', 'internal');
+        })->get()->pluck('name', 'id');
+
+        $externalStudents = \App\Models\Auth\User::whereHas('roles', function ($q) {
+            $q->where('role_id', 3)->where('employee_type', 'external');
+        })->get()->pluck('name', 'id');
+
+        $categories = Category::where('status', '=', 1)->pluck('name', 'id');
+        $departments = Department::all();
+
+        $enabledMeetingProviders = [];
+        if (\App\Models\ExternalApp::where('slug', 'zoom')->where('is_enabled', true)->where('is_setup', true)->where('status', 'active')->exists()) {
+            $enabledMeetingProviders['zoom'] = 'Zoom';
+        }
+        if (\App\Models\ExternalApp::where('slug', 'teams')->where('is_enabled', true)->where('is_setup', true)->where('status', 'active')->exists()) {
+            $enabledMeetingProviders['teams'] = 'Microsoft Teams';
+        }
+        if (\App\Models\ExternalApp::where('slug', 'google-meet-integration')->where('is_enabled', true)->where('is_setup', true)->where('status', 'active')->exists()) {
+            $enabledMeetingProviders['google-meet-integration'] = 'Google Meet';
+        }
+
+        return view('backend.courses.import-scorm', compact('internalStudents', 'externalStudents', 'teachers', 'categories', 'departments', 'enabledMeetingProviders'));
     }
 
     /**
@@ -1010,6 +1089,194 @@ $teachers = [$teacherId];
 
     }
 
+    /**
+     * Store a newly Scorm imported Course in storage.
+     *
+     * @param  \App\Http\Requests\Admin\UploadScormCoursesRequest $request
+     * @return \Illuminate\Http\Response
+     */
+
+    public function uploadScorm(UploadScormCoursesRequest $request)
+    {
+        if (!Gate::allows('course_create')) {
+            return abort(401);
+        }
+
+        $scormManager = app(\App\Scorm\Manager\ScormManager::class);
+
+
+        try {
+            $scormData = $scormManager->uploadScormArchive($request->file('scorm_package'));
+        } catch (Exception $e) 
+        {
+                $clientmsg = 'course_pages.admin_lessons_create.' . $e->getMessage();
+                $message = __($clientmsg);
+                // fallback if translation not found
+                if ($message === $clientmsg) {
+                    $message = $e->getMessage();
+                }
+            return response()->json(['status' => 'error', 'clientmsg' => $message]);
+        }
+        
+        DB::beginTransaction();
+
+        try {            
+            $storage = config('filesystems.default');
+            if( $storage == 'local') {
+                $request = $this->saveFiles($request);
+            } else {
+                $request = $this->saveFiles_s3($request);
+            }
+
+            $slug = "";
+            if (($request->slug == "") || $request->slug == null) {
+                $slug = Str::slug($request->title);
+            } elseif ($request->slug != null) {
+                $slug = $request->slug;
+            }
+
+            $uniqueId = uniqid();
+
+            $request->merge([
+                'include_in_kpi' => $request->boolean('include_in_kpi', true),
+            ]);
+
+            if ($request->course_type !== 'Offline') {
+                $request->merge([
+                    'meeting_provider' => null,
+                    'meeting_id'       => null,
+                    'meeting_join_url' => null,
+                    'meeting_host_url' => null,
+                    'meeting_start_at' => null,
+                    'meeting_duration' => null,
+                    'meeting_timezone' => null,
+                ]);
+            }
+
+            $course = Course::create($request->all());
+
+            $course->slug = $uniqueId . '-' . $slug;
+            $course->department_id = $request->department_id;
+            $course->cms = $request->cms;
+            $course->marks_required = $request->marks_required;
+            $course->course_code = $request->course_code;
+            $course->arabic_title = $request->arabic_title ?? null;
+            $course->course_lang = $request->course_lang ?? 'english';
+            $course->is_online = 'Online';
+
+            $course->current_step = 'question-added';
+            $course->scorm_id = $scormData->id;
+            $course->published = 1;
+            $course->temp_id = $uniqueId;
+            $course->save();
+
+            // Course created notification
+            try {
+                $notificationSettings = app(NotificationSettingsService::class);
+                if ($notificationSettings->shouldNotify('courses', 'course_created', 'email')) {
+                    CourseNotification::sendCourseCreatedEmail(\Auth::user(), $course);
+                    CourseNotification::createCourseCreatedBell(\Auth::user(), $course);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send course created notification: ' . $e->getMessage());
+            }
+
+            $course_id = $course->id;
+
+            $course_type = 0; // all courses are set to zero
+            if (null !== (Session::get('setvaluesession'))) {
+                if ((Session::get('setvaluesession')) == 2) {
+                    $course_type = 2;
+                } elseif ((Session::get('setvaluesession')) == 3) {
+                    $course_type = 3;
+                }
+            }
+
+            DB::table('courses')->where('id', $course_id)->update(['course_type' => $course_type]);
+
+            if ((int)$request->price == 0) {
+                $course->price = null;
+                $course->save();
+            }
+
+            //save course weitage
+
+            $course_module_weight = $request->course_module_weight ?? [];
+            $last_module_array = $request->course_module_inc ?? ['QuestionModule'];
+            $course->is_paid = $request->course_payment_type === 'Paid' ? 1 : 0;
+            $course->price = $request->course_payment_type === 'Paid' ? $request->price : null;
+
+            $last_module = end($last_module_array);
+
+            CourseModuleWeightage::create([
+                'course_id' => $course->id,
+                'minimun_qualify_marks' => $request->marks_required ?? 100,
+                'weightage' => [
+                    'LessonModule'   => isset($course_module_weight['LessonModule']) ? (int)$course_module_weight['LessonModule'] : 0,
+                    'QuestionModule' => isset($course_module_weight['QuestionModule']) ? (int)$course_module_weight['QuestionModule'] : 0,
+                    'FeedbackModule' => isset($course_module_weight['FeedbackModule']) ? (int)$course_module_weight['FeedbackModule'] : 0,
+                ],
+                'module_included' => $last_module_array,
+                'last_module' => $last_module,
+            ]);
+
+            $teacherId = \Auth::user()->isAdmin() ? $request->input('teacher_id') : \Auth::user()->id;
+
+            $teachers = [$teacherId];
+
+            $course->teachers()->sync($teachers);
+
+            $internalStudents = \Auth::user()->isAdmin() ? (array)$request->input('internalStudents') : [\Auth::user()->id];
+            $externalStudents = \Auth::user()->isAdmin() ? (array)$request->input('externalStudents') : [\Auth::user()->id];
+
+
+            $students = array_merge($internalStudents, $externalStudents);
+            $course->students()->sync($students);
+            // Auto subscribe into courses
+            foreach ($students as $id) {
+                $data = [
+                    'user_id' => $id,
+                    'course_id' =>  $course->id,
+                    'status' => 1
+                ];
+                SubscribeCourse::updateOrCreate($data);
+            }
+            $internalStudents = \App\Models\Auth\User::whereHas('roles', function ($q) {
+                $q->where('role_id', 3)->where('employee_type', 'internal');
+            })->get()->pluck('name', 'id');
+
+            // Trainer assigned notification
+            try {
+                $notificationSettings = app(NotificationSettingsService::class);
+                if ($notificationSettings->shouldNotify('trainers', 'trainer_assigned', 'email')) {
+                    foreach ($teachers as $teacherId) {
+                        if ($teacherId != \Auth::id()) {
+                            $trainer = User::find($teacherId);
+                            if ($trainer) {
+                                CourseNotification::sendTrainerAssignedEmail($trainer, $course, \Auth::user());
+                                CourseNotification::createTrainerAssignedBell($trainer, $course, \Auth::user());
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send trainer assigned notification: ' . $e->getMessage());
+            }
+            
+            DB::commit();
+
+            session()->flash('course_created', true);
+            session()->flash('course_id', $course->id);
+            //return redirect()->route('admin.courses.index')->with('course_created', true)->with('course_id', $course->id);
+            return response()->json(['status' => 'success', 'temp_id' => $uniqueId, 'course_id' => $course->id, 'redirect_url' =>  route('admin.courses.index'), 'clientmsg' => 'Added successfully']);
+
+        } catch (Exception $e) {
+
+           DB::rollBack();
+           return response()->json(['status' => 'error', 'clientmsg' => $e->getMessage()]);
+        }
+    }
+
 
     // public function add_std(){
     //        dd('ho');
@@ -1044,7 +1311,6 @@ $teachers = [$teacherId];
         $already_assigned_internal_users = SubscribeCourse::where('course_id', $id)->get()->pluck('user_id');
 
         $course = Course::with('latestModuleWeightage')->findOrFail($id);
-        //dd($course);
 
         $enabledMeetingProviders = [];
         if (\App\Models\ExternalApp::where('slug', 'zoom')->where('is_enabled', true)->where('is_setup', true)->where('status', 'active')->exists()) {
@@ -1057,6 +1323,9 @@ $teachers = [$teacherId];
             $enabledMeetingProviders['google-meet-integration'] = 'Google Meet';
         }
 
+        if (!empty($course->scorm_id)) {
+            return view('backend.courses.edit-scorm', compact('already_assigned_internal_users', 'internalStudents', 'externalStudents', 'course', 'teachers', 'categories', 'departments', 'enabledMeetingProviders'));    
+        }
         return view('backend.courses.edit', compact('already_assigned_internal_users', 'internalStudents', 'externalStudents', 'course', 'teachers', 'categories', 'departments', 'enabledMeetingProviders'));
     }
 

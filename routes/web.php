@@ -9,6 +9,8 @@ use App\Http\Controllers\Frontend\Auth\RegisterController;
 use App\Http\Controllers\CalenderController;
 use App\Http\Controllers\CoursesController;
 use App\Http\Controllers\InstallerController;
+use App\Http\Controllers\ScormController;
+use App\Http\Controllers\ScormTrackingController;
 use App\Http\Controllers\UserCourseRequestController;
 use App\Jobs\SendEmailJob;
 use App\Models\AssignmentQuestion;
@@ -35,6 +37,33 @@ Route::get('/ldap-test', function () {
         return "❌ LDAP connection failed: " . $e->getMessage();
     }
 });
+
+Route::get('/test-scorm-upload', function () {
+    return view('test-scorm-upload');
+});
+
+Route::post('/test-scorm-upload', function (\Illuminate\Http\Request $request) {
+
+    $request->validate([
+        'zip_file' => 'required|mimes:zip'
+    ]);
+
+    $scormManager = app(\Peopleaps\Scorm\Manager\ScormManager::class);
+
+    $scorm = $scormManager->uploadScormArchive(
+        $request->file('zip_file')
+    );
+
+    return response()->json($scorm);
+});
+
+Route::get('/play-scorm/{id}', [ScormController::class, 'play'])
+        ->name('scorm.play');
+Route::get('/scorm/track/{scoUuid}/{scormVersion}', [ScormTrackingController::class, 'getTracking'])
+        ->name('scorm.getTracking');
+
+    Route::post('/scorm/track/{scoUuid}', [ScormTrackingController::class, 'track'])
+        ->name('scorm.track');  
 
 Route::get('/ldap-users', function () {
     $users = LdapUser::query()->get();

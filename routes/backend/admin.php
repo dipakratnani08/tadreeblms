@@ -383,6 +383,8 @@ Route::post('categories_mass_destroy', ['uses' => 'Admin\CategoriesController@ma
 Route::post('categories_restore/{id}', ['uses' => 'Admin\CategoriesController@restore', 'as' => 'categories.restore']);
 Route::delete('categories_perma_del/{id}', ['uses' => 'Admin\CategoriesController@perma_del', 'as' => 'categories.perma_del']);
 
+Route::get('courses/import-scorm', 'Admin\CoursesController@importScorm')->name('courses.importscorm');
+Route::post('courses/store-scorm', 'Admin\CoursesController@uploadScorm')->name('courses.uploadscorm');
 
 //===== Courses Routes =====//
 Route::resource('courses', 'Admin\CoursesController');
@@ -411,6 +413,7 @@ Route::resource('assign-learning-pathways', 'Admin\AssignLearningPathwayControll
 
 
 
+
 //===== Bundles Routes =====//
 Route::resource('bundles', 'Admin\BundlesController');
 Route::get('get-bundles-data', ['uses' => 'Admin\BundlesController@getData', 'as' => 'bundles.get_data']);
@@ -426,7 +429,9 @@ Route::get('lessons/add', function () {
     return redirect()->route('admin.lessons.create');
 });
 
-
+Route::get('lessons/view-scorm/{scorm_id}', 'Admin\LessonsController@viewScorm')->name('lessons.viewScorm');
+Route::get('/lessons/trackscorm/{scoUuid}/{scormVersion}', 'Admin\LessonsController@getTracking')->name('lessons.scorm.getTracking');
+Route::post('lessons/trackscorm/{scoUuid}', 'Admin\LessonsController@track')->name('lessons.scorm.track');
 Route::resource('lessons', 'Admin\LessonsController');
 Route::resource('course-feedback-questions', 'Admin\CourseFeedbackController');
 Route::get('course-feedback-questions/delete/{id}', 'Admin\CourseFeedbackController@destroy');

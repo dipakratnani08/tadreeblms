@@ -73,7 +73,8 @@ class Course extends Model
         'is_paid',
         'schedule_type',
         'schedule_days',
-        'last_session_date'
+        'last_session_date',
+        'scorm_id'
     ];
 
     protected $appends = ['image'];
@@ -889,4 +890,10 @@ public function getStatusLabelAttribute()
         }
         
     }
+
+
+    public function scorm()
+{
+    return $this->belongsTo(ScormModel::class, 'scorm_id');
+}
 }
