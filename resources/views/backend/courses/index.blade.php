@@ -23,6 +23,7 @@
    <div class="d-flex">
        @can('course_create')
           <div class="">
+              <a href="{{ route('admin.courses.importscorm') }}" class="btn add-btn"><i class="fa fa-upload"></i> @lang('strings.backend.general.app_import_course')</a>
               <a href="{{ route('admin.courses.create') }}" class="btn add-btn">@lang('strings.backend.general.app_add_new')</a>
 
           </div>

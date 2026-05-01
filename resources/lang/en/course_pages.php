@@ -112,6 +112,7 @@ return array(
     'english' => 'English',
     'arabic' => 'Arabic',
     'course_image' => 'Course Image',
+    'scorm_package' => 'SCORM Package (.zip)',
     'choose_file' => 'Choose a file',
     'course_type_e_learning' => 'E-Learning',
     'course_type_live_online' => 'Live-Online',
@@ -161,5 +162,6 @@ return array(
     'something_went_wrong' => 'Something went wrong',
     'enter_subject' => 'Enter subject',
     'delete' => 'Delete',
+    'invalid_scorm_archive_message' => 'Invalid SCORM package. Please upload a valid SCORM ZIP file.'
   ),
 );

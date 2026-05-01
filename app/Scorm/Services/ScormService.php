@@ -1,10 +1,10 @@
 <?php
 
-namespace EscolaLms\Scorm\Services;
+namespace App\Scorm\Services;
 
 use DOMDocument;
-use EscolaLms\Scorm\Services\Contracts\ScormTrackServiceContract;
-use EscolaLms\Scorm\Strategies\ScormFieldStrategy;
+use App\Scorm\Services\Contracts\ScormTrackServiceContract;
+use App\Scorm\Strategies\ScormFieldStrategy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +21,7 @@ use Peopleaps\Scorm\Model\ScormScoModel;
 use Peopleaps\Scorm\Model\ScormScoTrackingModel;
 use Ramsey\Uuid\Uuid;
 use ZipArchive;
-use EscolaLms\Scorm\Services\Contracts\ScormServiceContract;
+use App\Scorm\Services\Contracts\ScormServiceContract;
 use Illuminate\Http\File;
 
 
