@@ -695,8 +695,8 @@ class CoursesController extends Controller
             if ($overlappingMeetings) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'meeting_start_at' => ['Overlapping date, time, and duration for the same teacher is not allowed.']
-                        ]);
-}
+                ]);
+            }
             // Validate based on schedule type
             if ($request->schedule_type && in_array($request->schedule_type, ['daily', 'weekly', 'custom'])) {
                 // Schedule-based validation
@@ -1343,6 +1343,9 @@ $teachers = [$teacherId];
             return abort(401);
         }
         $course = Course::findOrFail($id);
+
+        // Initialize teachers with empty array - will be updated based on course type
+        $teachers = [];
 
         if ($request->course_type !== 'Online') {
             $request->validate([
