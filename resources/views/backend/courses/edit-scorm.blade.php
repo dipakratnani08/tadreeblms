@@ -276,8 +276,6 @@
 
 
 
-
-
                 @if (Auth::user()->isAdmin())
                     {{-- <div class="row">
                         <div class="col-10 form-group">
